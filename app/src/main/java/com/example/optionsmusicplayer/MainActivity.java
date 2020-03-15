@@ -11,68 +11,70 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import java.io.IOException;
+
 public class MainActivity extends AppCompatActivity implements AudioManager.OnAudioFocusChangeListener {
 
     Button playBtn;
+    Button nextSongBtn;
+    Button prevSongBtn;
     SeekBar positionBar;
     SeekBar volumeBar;
     TextView elapsedTimeLabel;
     TextView remainingTime;
 
-    MediaPlayer mp;
+    Player player;
     int totalTime;
+    Songlist songlist;
+    int currentSong = 0;
 
     private Handler handler;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        playBtn = (Button) findViewById(R.id.playBtn);
-        positionBar = (SeekBar) findViewById(R.id.positionBar);
-        volumeBar = (SeekBar) findViewById(R.id.volumeBar);
-        elapsedTimeLabel = (TextView) findViewById(R.id.elapsedTimeLabel);
-        remainingTime = (TextView) findViewById(R.id.remainingTimeLabel);
+        // create Player
+        songlist = Songlist.getListFromRaw();
+        player = new Player(songlist);
+        totalTime = player.mp.getDuration();
+
+        // get ui references
+        playBtn = findViewById(R.id.playBtn);
+        nextSongBtn = findViewById(R.id.nextSongBtn);
+        prevSongBtn = findViewById(R.id.prevSongBtn);
+        positionBar = findViewById(R.id.positionBar);
+        volumeBar = findViewById(R.id.volumeBar);
+        elapsedTimeLabel = findViewById(R.id.elapsedTimeLabel);
+        remainingTime = findViewById(R.id.remainingTimeLabel);
 
         //Button OnClick
         playBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (mp.isPlaying() == false) {
-                    mp.start();
+                if (!player.mp.isPlaying()) {
+                    player.play();
                     playBtn.setBackgroundResource(android.R.drawable.ic_media_pause);
                 } else {
-                    mp.pause();
+                    player.pause();
                     playBtn.setBackgroundResource(android.R.drawable.ic_media_play);
                 }
             }
         });
-
-        //Media Player
-        mp = MediaPlayer.create(this, R.raw.boss_fall);
-        mp.setLooping(true);
-        mp.seekTo(0); // goes to start
-        mp.setVolume(0.5f, 0.5f);
-        totalTime = mp.getDuration();
-        mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+        nextSongBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onCompletion(MediaPlayer mp) {
-
+            public void onClick(View v) {
+                player.nextSong();
             }
         });
-
-        AudioManager am = null;
-
-        // Request focus for music stream and pass AudioManager.OnAudioFocusChangeListener
-        // implementation reference
-        int result = am.requestAudioFocus(this, AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN);
-
-        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            // Play
-        }
-
+        prevSongBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                player.previousSong();
+            }
+        });
 
         //position bar
         positionBar.setMax(totalTime);
@@ -80,7 +82,7 @@ public class MainActivity extends AppCompatActivity implements AudioManager.OnAu
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
-                    mp.seekTo(progress);
+                    player.mp.seekTo(progress);
                     positionBar.setProgress(progress);
                 }
             }
@@ -94,18 +96,19 @@ public class MainActivity extends AppCompatActivity implements AudioManager.OnAu
             }
         });
 
+
         // new Thread to update progressBar
         handler = new Handler(getApplicationContext().getMainLooper());
         new Thread(new Runnable() {
             @Override
             public void run() {
-                while (mp != null) {
+                while (player.mp != null) {
                     try {
                         // UI can only be changed by the thread that created(?) it.
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                updateProgress(mp.getCurrentPosition());
+                                updateProgress(player.mp.getCurrentPosition());
                             }
                         });
 
@@ -123,7 +126,7 @@ public class MainActivity extends AppCompatActivity implements AudioManager.OnAu
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 float volumeNum = progress / 100f;
-                mp.setVolume(volumeNum, volumeNum);
+                player.mp.setVolume(volumeNum, volumeNum);
             }
 
             @Override
