@@ -1,6 +1,8 @@
 package com.example.optionsmusicplayer;
 
 import android.media.MediaPlayer;
+import android.os.Debug;
+import android.util.Log;
 
 import java.io.IOException;
 
@@ -12,6 +14,14 @@ public class Player {
 
     public Player(Songlist songlist) {
         mp = new MediaPlayer();
+        try {
+            mp.setDataSource("raw://boss_fall.ogg");
+            mp.prepare();
+        } catch (IOException e) {
+            Log.e("myTag", "music File not found");
+            e.printStackTrace();
+        }
+
         this.songlist = songlist;
         currentSong = 0;
 
@@ -39,6 +49,7 @@ public class Player {
     }
 
     public void play() {
+
         mp.start();
     }
 
@@ -54,9 +65,9 @@ public class Player {
 
         try {
             mp.stop();
-            mp.release();
+            mp.reset();
             mp.setDataSource(songlist.songs.get(next).getPath());
-            mp.prepare();
+            mp.prepare(); //TODO should not be called on the ui thread
             mp.start();
         } catch (IOException e) {
             e.printStackTrace();
@@ -71,7 +82,7 @@ public class Player {
         }
         try {
             mp.stop();
-            mp.release();
+            mp.reset();
             mp.setDataSource(songlist.songs.get(prev).getPath());
             mp.prepare();
             mp.start();
